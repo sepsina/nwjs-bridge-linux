@@ -30,6 +30,7 @@
     "@angular/platform-browser": "^14.2.0",
     "@angular/platform-browser-dynamic": "^14.2.0",
     "@angular/router": "^14.2.0",
+    "@types/chrome": "^0.0.208",
     "chrome-apps-serialport": "^1.0.9",
     "material-icons": "^1.12.1",
     "rxjs": "~7.5.0",

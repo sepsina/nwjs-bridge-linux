@@ -1,3 +1,4 @@
+///<reference types="chrome"/>
 import {Injectable} from '@angular/core';
 import {EventsService} from './events.service';
 import {UtilsService} from './utils.service';
@@ -36,9 +37,10 @@ export class PortService {
 
     private comFlag = false;
 
-    private slPort = {} as any;
+    //private slPort = {} as any;
     private comPorts = [];
-    private SerialPort = window.nw.require('chrome-apps-serialport').SerialPort;
+    //private SerialPort = window.nw.require('chrome-apps-serialport').SerialPort;
+    private connID: number;
 
     constructor(private events: EventsService,
                 private utils: UtilsService) {
@@ -47,6 +49,14 @@ export class PortService {
         });
         this.events.subscribe('zcl_cmd', (cmd)=>{
             this.udpZclCmd(cmd);
+        });
+        chrome.serial.onReceive.addListener((info)=>{
+            if(info.connectionId === this.connID){
+                this.slOnData(info.data);
+            }
+        });
+        chrome.serial.onReceiveError.addListener((info: any)=>{
+                this.rcvErrCB(info);
         });
     }
 
@@ -57,6 +67,7 @@ export class PortService {
      *
      */
     async checkCom() {
+
         if(this.comFlag == false) {
             this.hostCmdQueue = [];
             this.hostCmdFlag = false;
@@ -79,15 +90,19 @@ export class PortService {
      *
      */
     closeComPort() {
-        this.validPortFlag = false;
-        this.portOpenFlag = false;
-        console.log('close serial port');
-        if(typeof this.slPort.close === 'function') {
-            this.slPort.close((err)=>{
-                if(err) {
-                    console.log(`port close err: ${err.message}`);
+
+        if(this.connID > -1){
+            chrome.serial.disconnect(
+                this.connID,
+                (result)=>{
+                    this.connID = -1;
+                    this.portOpenFlag = false;
+                    this.validPortFlag = false;
+                    setTimeout(() => {
+                        this.findComPort();
+                    }, 100);
                 }
-            });
+            );
         }
     }
 
@@ -98,14 +113,22 @@ export class PortService {
      *
      */
     listComPorts() {
-        this.searchPortFlag = true;
-        this.validPortFlag = false;
-        if(this.portOpenFlag == true) {
-            this.closeComPort();
+
+        if(this.searchPortFlag == true){
+            return;
         }
-        this.SerialPort.list().then((ports)=>{
-            this.comPorts = ports;
-            if(ports.length) {
+        chrome.serial.getDevices((ports)=>{
+            this.comPorts = [];
+            for(let i = 0; i < ports.length; i++){
+                if(ports[i].productId === 0x6015){      // FX230
+                    if(ports[i].vendorId === 0x0403){   // FTDI
+                        this.comPorts.push(ports[i]);
+                    }
+                }
+            }
+            console.log(this.comPorts);
+            if(this.comPorts.length) {
+                this.searchPortFlag = true;
                 this.portIdx = 0;
                 setTimeout(()=>{
                     this.findComPort();
@@ -113,6 +136,9 @@ export class PortService {
             }
             else {
                 this.searchPortFlag = false;
+                setTimeout(()=>{
+                    this.listComPorts();
+                }, 1000);
                 console.log('no com ports');
             }
         });
@@ -125,54 +151,42 @@ export class PortService {
      *
      */
     private findComPort() {
-        if(this.validPortFlag == false) {
-            if(this.portOpenFlag == true) {
-                this.closeComPort();
-            }
-            let portPath = this.comPorts[this.portIdx].path;
-            console.log('testing: ', portPath);
-            let portOpt = {
-                baudrate: 115200,
-                autoOpen: false,
-            };
-            this.slPort = new this.SerialPort(portPath, portOpt);
-            this.slPort.on('open', ()=>{
-                this.slPort.on('data', (data)=>{
-                    this.slOnData(data);
-                });
-            });
-            let done = true;
-            this.portIdx++;
-            if(this.portIdx < this.comPorts.length) {
-                done = false;
-            }
-            this.slPort.open((err)=>{
-                if(err) {
-                    if(done == true) {
-                        this.searchPortFlag = false;
-                    }
-                    else {
-                        setTimeout(()=>{
-                            this.findComPort();
-                        }, 200);
-                    }
-                }
-                else {
+
+        if(this.searchPortFlag == false){
+            setTimeout(() => {
+                this.listComPorts();
+            }, 1000);
+            return;
+        }
+        let portPath = this.comPorts[this.portIdx].path;
+        console.log('testing: ', portPath);
+        let connOpts = {
+            bitrate: 115200
+        };
+        chrome.serial.connect(
+            portPath,
+            connOpts,
+            (connInfo)=>{
+                if(connInfo){
+                    console.log(`con ID: ${connInfo.connectionId}`);
+                    this.connID = connInfo.connectionId;
                     this.portOpenFlag = true;
                     this.testPortTMO = setTimeout(()=>{
                         this.closeComPort();
-                        this.portOpenFlag = false;
-                        if(done == true) {
-                            this.searchPortFlag = false;
-                        }
-                        else {
-                            this.findComPort();
-                        }
-                        console.log('test port tmo');
                     }, 2000);
                     this.testPortReq();
                 }
-            });
+                else {
+                    console.log('[ err ] ' + chrome.runtime.lastError.message);
+                    setTimeout(() => {
+                        this.findComPort();
+                    }, 100);
+                }
+            }
+        );
+        this.portIdx++;
+        if(this.portIdx >= this.comPorts.length) {
+            this.searchPortFlag = false;
         }
     }
 
@@ -273,6 +287,7 @@ export class PortService {
     private processMsg(msg: gIF.slMsg_t) {
 
         this.comFlag = true;
+
         let msgData = new Uint8Array(msg.data);
         switch(msg.type) {
             case gConst.SL_MSG_TESTPORT: {
@@ -630,22 +645,7 @@ export class PortService {
         }
         pktView.setUint8(gConst.CRC_IDX, crc);
 
-        msgIdx = 0;
-        slMsgBuf[msgIdx++] = gConst.SL_START_CHAR;
-        for(i = 0; i < msgLen; i++) {
-            if(pktData[i] < 0x10) {
-                pktData[i] ^= 0x10;
-                slMsgBuf[msgIdx++] = gConst.SL_ESC_CHAR;
-            }
-            slMsgBuf[msgIdx++] = pktData[i];
-        }
-        slMsgBuf[msgIdx++] = gConst.SL_END_CHAR;
-
-        let slMsgLen = msgIdx;
-        let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', ()=>{
-            // ---
-        });
+        this.serialSend(pktData, msgLen);
     }
 
     /***********************************************************************************************
@@ -688,22 +688,7 @@ export class PortService {
         }
         pktView.setUint8(gConst.CRC_IDX, crc);
 
-        msgIdx = 0;
-        slMsgBuf[msgIdx++] = gConst.SL_START_CHAR;
-        for(i = 0; i < msgLen; i++) {
-            if(pktData[i] < 0x10) {
-                pktData[i] ^= 0x10;
-                slMsgBuf[msgIdx++] = gConst.SL_ESC_CHAR;
-            }
-            slMsgBuf[msgIdx++] = pktData[i];
-        }
-        slMsgBuf[msgIdx++] = gConst.SL_END_CHAR;
-
-        let slMsgLen = msgIdx;
-        let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', ()=>{
-            // ---
-        });
+        this.serialSend(pktData, msgLen);
     }
 
     /***********************************************************************************************
@@ -746,22 +731,7 @@ export class PortService {
         }
         pktView.setUint8(gConst.CRC_IDX, crc);
 
-        msgIdx = 0;
-        slMsgBuf[msgIdx++] = gConst.SL_START_CHAR;
-        for(i = 0; i < msgLen; i++) {
-            if(pktData[i] < 0x10) {
-                pktData[i] ^= 0x10;
-                slMsgBuf[msgIdx++] = gConst.SL_ESC_CHAR;
-            }
-            slMsgBuf[msgIdx++] = pktData[i];
-        }
-        slMsgBuf[msgIdx++] = gConst.SL_END_CHAR;
-
-        let slMsgLen = msgIdx;
-        let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', ()=>{
-            // ---
-        });
+        this.serialSend(pktData, msgLen);
     }
 
     /***********************************************************************************************
@@ -830,22 +800,7 @@ export class PortService {
         }
         pktView.setUint8(gConst.CRC_IDX, crc);
 
-        msgIdx = 0;
-        slMsgBuf[msgIdx++] = gConst.SL_START_CHAR;
-        for(i = 0; i < msgLen; i++) {
-            if(pktData[i] < 0x10) {
-                pktData[i] ^= 0x10;
-                slMsgBuf[msgIdx++] = gConst.SL_ESC_CHAR;
-            }
-            slMsgBuf[msgIdx++] = pktData[i];
-        }
-        slMsgBuf[msgIdx++] = gConst.SL_END_CHAR;
-
-        let slMsgLen = msgIdx;
-        let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', ()=>{
-            // ---
-        });
+        this.serialSend(pktData, msgLen);
     }
 
     /***********************************************************************************************
@@ -913,9 +868,22 @@ export class PortService {
         }
         pktView.setUint8(gConst.CRC_IDX, crc);
 
-        msgIdx = 0;
+        this.serialSend(pktData, msgLen);
+    }
+
+    /***********************************************************************************************
+     * fn          serialSend
+     *
+     * brief
+     *
+     */
+    serialSend(pktData: Uint8Array, msgLen: number) {
+
+        let slMsgBuf = new Uint8Array(128);
+        let msgIdx = 0;
+
         slMsgBuf[msgIdx++] = gConst.SL_START_CHAR;
-        for(i = 0; i < msgLen; i++) {
+        for(let i = 0; i < msgLen; i++) {
             if(pktData[i] < 0x10) {
                 pktData[i] ^= 0x10;
                 slMsgBuf[msgIdx++] = gConst.SL_ESC_CHAR;
@@ -926,8 +894,60 @@ export class PortService {
 
         let slMsgLen = msgIdx;
         let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', ()=>{
-            // ---
-        });
+        chrome.serial.send(
+            this.connID,
+            slMsg.buffer,
+            (sendInfo: any)=>{
+                if(sendInfo.error){
+                    console.log(`send err: ${sendInfo.error}`);
+                    switch(sendInfo.error){
+                        case 'disconnected':
+                        case 'system_error': {
+                            setTimeout(() => {
+                                this.closeComPort();
+                            }, 100);
+                            break;
+                        }
+                        case 'pending': {
+                            break;
+                        }
+                        case 'timeout': {
+                            break;
+                        }
+                    }
+                }
+            }
+        );
+    }
+
+    /***********************************************************************************************
+     * fn          rcvErrCB
+     *
+     * brief
+     *
+     */
+    rcvErrCB(info: any) {
+        if(info.connectionId === this.connID){
+            console.log(`rcv err: ${info.error}`);
+            switch(info.error){
+                case 'disconnected':
+                case 'device_lost':
+                case 'system_error': {
+                    setTimeout(() => {
+                        this.closeComPort();
+                    }, 100);
+                    break;
+                }
+                case 'timeout':
+                case 'break':
+                case 'frame_error':
+                case 'overrun':
+                case 'buffer_overflow':
+                case 'parity_error': {
+                    // ---
+                    break;
+                }
+            }
+        }
     }
 }

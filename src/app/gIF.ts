@@ -193,6 +193,11 @@ export interface scroll_t {
     yPos: number;
 }
 
+export interface usbId_t {
+    pid: number;
+    vid: number;
+}
+
 export interface udpZclReq_t {
     ip: string;
     port: number;
