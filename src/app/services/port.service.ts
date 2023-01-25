@@ -35,6 +35,7 @@ export class PortService {
     private hostCmdTmoRef;
     private runTmoRef = null;
 
+    private tmoFlag = false;
     private comFlag = false;
 
     //private slPort = {} as any;
@@ -534,7 +535,7 @@ export class PortService {
             clearTimeout(this.runTmoRef);
             this.runTmoRef = null;
         }
-
+        this.tmoFlag = true;
         let hostCmd = this.hostCmdQueue[0];
         if(hostCmd) {
             switch(hostCmd.type) {
@@ -554,12 +555,17 @@ export class PortService {
                     this.zclReq();
                     break;
                 }
+                default: {
+                    this.tmoFlag = false;
+                    break;
+                }
             }
         }
-
+        /*
         this.hostCmdTmoRef = setTimeout(()=>{
             this.hostCmdTmo();
         }, gConst.RD_HOST_TMO);
+        */
     }
 
     /***********************************************************************************************
@@ -586,7 +592,7 @@ export class PortService {
             this.hostCmdFlag = false;
             return;
         }
-
+        this.tmoFlag = true;
         let cmd = this.hostCmdQueue[0];
         switch (cmd.type) {
             case gConst.RD_ATTR: {
@@ -605,11 +611,16 @@ export class PortService {
                 this.zclReq();
                 break;
             }
+            default: {
+                this.tmoFlag = false;
+                break;
+            }
         }
-
+        /*
         this.hostCmdTmoRef = setTimeout(()=>{
             this.hostCmdTmo();
         }, gConst.RD_HOST_TMO);
+        */
     }
 
     /***********************************************************************************************
@@ -899,7 +910,6 @@ export class PortService {
             slMsg.buffer,
             (sendInfo: any)=>{
                 if(sendInfo.error){
-                    console.log(`send err: ${sendInfo.error}`);
                     switch(sendInfo.error){
                         case 'disconnected':
                         case 'system_error': {
@@ -915,6 +925,13 @@ export class PortService {
                             break;
                         }
                     }
+                    console.log(`send err: ${sendInfo.error}`);
+                }
+                if(this.tmoFlag === true){
+                    this.tmoFlag = false;
+                    this.hostCmdTmoRef = setTimeout(()=>{
+                        this.hostCmdTmo();
+                    }, gConst.RD_HOST_TMO);
                 }
             }
         );

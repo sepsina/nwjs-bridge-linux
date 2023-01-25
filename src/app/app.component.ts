@@ -17,12 +17,20 @@ import * as gConst from './gConst';
 import * as gIF from './gIF';
 
 import { CdkDragEnd, CdkDragStart } from '@angular/cdk/drag-drop';
+import { DialogConfig } from '@angular/cdk/dialog';
+import { environment } from 'src/environments/environment';
+
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { catchError, of, throwError } from 'rxjs';
 
 const DUMMY_SCROLL = '- scroll -';
 const dumyScroll: gIF.scroll_t = {
     name: DUMMY_SCROLL,
     yPos: 0
 }
+
+const wait_msg = '--------';
+
 
 @Component({
     selector: 'app-root',
@@ -38,6 +46,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     bkgImgHeight: number;
     imgUrl: string;
     imgDim = {} as gIF.imgDim_t;
+    planPath = '';
 
     scrolls: gIF.scroll_t[] = [
         dumyScroll,
@@ -58,6 +67,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
     dragFlag = false;
 
+    progressFlag = false;
+    waitMsg = 'wait';
+    msgIdx = 0;
+
     constructor(private events: EventsService,
                 private serialLink: SerialLinkService,
                 private udp: UdpService,
@@ -65,6 +78,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
                 private matDialog: MatDialog,
                 private ngZone: NgZone,
                 private utils: UtilsService,
+                private httpClient: HttpClient,
                 private renderer: Renderer2) {
         // ---
     }
@@ -113,16 +127,76 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      */
     init() {
+
+        const partsURL = '/assets/parts.json';
+        /*
+        fetch(partsURL).then(
+            (rsp)=>{
+                rsp.json().then(
+                    (parts)=>{
+                        this.partDesc = parts;
+                        for(let desc of this.partDesc) {
+                            let part = {} as gIF.part_t;
+                            part.devName = desc.devName;
+                            part.part = desc.part;
+                            part.url = desc.url;
+                            this.partMap.set(desc.partNum, part);
+                        }
+                        console.log(JSON.stringify(this.partDesc));
+                    },
+                    (err)=>{
+                        console.log('[ err ] failed to fetch parts');
+                    }
+                );
+            },
+            (err)=>{
+                console.log(err);
+            }
+        );
+        */
+        this.httpClient.get(partsURL).subscribe({
+            next: (parts: gIF.partDesc_t[])=>{
+                this.partDesc = [];
+                this.partMap.clear();
+                for(let desc of parts){
+                    this.partDesc.push(desc);
+                    let part = {} as gIF.part_t;
+                    part.devName = desc.devName;
+                    part.part = desc.part;
+                    part.url = desc.url;
+                    this.partMap.set(desc.partNum, part);
+                }
+                console.log(JSON.stringify(this.partDesc));
+            },
+            error: (err: HttpErrorResponse)=>{
+                console.log(err.message);
+            }
+        });
+
+        const bkgImgPath = '/assets/floor_plan.jpg';
+        let bkgImg = new Image();
+        bkgImg.onload = ()=>{
+            this.bkgImgWidth = bkgImg.width;
+            this.bkgImgHeight = bkgImg.height;
+            const el = this.containerRef.nativeElement;
+            let divDim = el.getBoundingClientRect();
+            this.imgDim.width = divDim.width;
+            this.imgDim.height = Math.round((divDim.width / bkgImg.width) * bkgImg.height);
+            this.renderer.setStyle(el, 'height', `${this.imgDim.height}px`);
+            this.renderer.setStyle(el, 'backgroundImage', `url(${bkgImgPath})`);
+            this.renderer.setStyle(el, 'backgroundAttachment', 'scroll');
+            this.renderer.setStyle(el, 'backgroundRepeat', 'no-repeat');
+            this.renderer.setStyle(el, 'backgroundSize', 'contain');
+        };
+        bkgImg.src = bkgImgPath;
+        /*
         try {
-            let base64 = window.nw.require('fs').readFileSync('./src/assets/floor_plan.jpg', 'base64');
-            this.imgUrl = `data:image/jpeg;base64,${base64}`;
-            this.setBkgImg(this.imgUrl);
-        }
-        catch (err) {
-            console.log('read dir err: ' + err.code);
-        }
-        try {
-            let parts = window.nw.require('fs').readFileSync('./src/assets/parts.json', 'utf8');
+            let partsPath = './src/assets/parts.json';
+            if(environment.production) {
+                partsPath = './assets/parts.json'
+            }
+            const fs = window.nw.require('fs');
+            let parts = fs.readFileSync(partsPath, 'utf8');
             this.partDesc = JSON.parse(parts);
             for(let desc of this.partDesc) {
                 let part = {} as gIF.part_t;
@@ -131,11 +205,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
                 part.url = desc.url;
                 this.partMap.set(desc.partNum, part);
             }
-            //console.log(JSON.stringify(this.partDesc));
+            console.log(JSON.stringify(this.partDesc));
         }
         catch (err) {
             console.log('read parts err: ' + JSON.stringify(err));
         }
+        */
         //this.scrolls = [];
         //const scrolls = await this.ns.getScrolls();
         //this.scrolls = JSON.parse(this.storage.getScrolls());
@@ -197,11 +272,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      * brief
      *
-     */
-    setBkgImg(imgSrc: string) {
+     *
+    setBkgImg() {
 
         let bkgImg = new Image();
-        bkgImg.src = imgSrc;
         bkgImg.onload = ()=>{
             this.bkgImgWidth = bkgImg.width;
             this.bkgImgHeight = bkgImg.height;
@@ -210,13 +284,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             this.imgDim.width = divDim.width;
             this.imgDim.height = Math.round((divDim.width / bkgImg.width) * bkgImg.height);
             this.renderer.setStyle(el, 'height', `${this.imgDim.height}px`);
-            this.renderer.setStyle(el, 'backgroundImage', `url(${imgSrc})`);
+            this.renderer.setStyle(el, 'backgroundImage', `url(${bkgImgPath})`);
             this.renderer.setStyle(el, 'backgroundAttachment', 'scroll');
             this.renderer.setStyle(el, 'backgroundRepeat', 'no-repeat');
             this.renderer.setStyle(el, 'backgroundSize', 'contain');
         };
+        bkgImg.src = bkgImgPath;
     }
-
+    */
     /***********************************************************************************************
      * @fn          onDragEnded
      *
@@ -258,6 +333,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     setStyles(keyVal: any) {
 
+        this.startWait();
         setTimeout(()=>{
             const dialogConfig = new MatDialogConfig();
             dialogConfig.data = keyVal;
@@ -266,10 +342,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             dialogConfig.disableClose = true;
             dialogConfig.panelClass = 'set-styles-container';
             dialogConfig.restoreFocus = false;
+            //dialogConfig.enterAnimationDuration = '0ms';
+            //dialogConfig.exitAnimationDuration = '0ms'
 
             const dlgRef = this.matDialog.open(SetStyles, dialogConfig);
             dlgRef.afterOpened().subscribe(()=>{
-                // ---
+                this.progressFlag = false;
             });
         }, 10);
     }
@@ -282,6 +360,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     onEditScrollsClick() {
 
+        this.startWait();
         setTimeout(()=>{
             const dlgData = {
                 scrolls: JSON.parse(JSON.stringify(this.scrolls)),
@@ -299,7 +378,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             const dlgRef = this.matDialog.open(EditScrolls, dialogConfig);
 
             dlgRef.afterOpened().subscribe(()=>{
-                // ---
+                this.progressFlag = false;
             });
             dlgRef.afterClosed().subscribe((data: gIF.scroll_t[]) => {
                 if (data) {
@@ -319,6 +398,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     setDNS() {
 
+        this.startWait();
         setTimeout(()=>{
             const dialogConfig = new MatDialogConfig();
             dialogConfig.data = '';
@@ -330,7 +410,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
             const dlgRef = this.matDialog.open(EditFreeDNS, dialogConfig);
             dlgRef.afterOpened().subscribe(()=>{
-                // ---
+                this.progressFlag = false;
             });
         }, 10);
     }
@@ -342,6 +422,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     editBinds() {
 
+        this.startWait();
         setTimeout(()=>{
             const dlgData = {
                 partMap: this.partMap,
@@ -357,7 +438,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             const dlgRef = this.matDialog.open(EditBinds, dialogConfig);
 
             dlgRef.afterOpened().subscribe(()=>{
-                // ---
+                this.progressFlag = false;
             });
         }, 10);
     }
@@ -370,6 +451,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     editThermostats() {
 
+        this.startWait();
         setTimeout(()=>{
             const dlgData = {
                 partMap: this.partMap,
@@ -385,7 +467,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             const dlgRef = this.matDialog.open(EditStats, dialogConfig);
 
             dlgRef.afterOpened().subscribe(()=>{
-                // ---
+                this.progressFlag = false;
             });
         }, 10);
     }
@@ -525,4 +607,45 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
             }
         }
     }
+
+    /***********************************************************************************************
+     * fn          startWait
+     *
+     * brief
+     *
+     */
+    startWait(){
+        //this.ngZone.run(()=>{
+            this.progressFlag = true;
+            this.waitMsg = 'wait...';
+            this.msgIdx = 0;
+            setTimeout(() => {
+                this.incrWait()
+            }, 250);
+        //});
+    }
+
+    /***********************************************************************************************
+     * fn          incrWait
+     *
+     * brief
+     *
+     */
+    incrWait(){
+        //this.ngZone.run(()=>{
+            if(this.progressFlag === true){
+                let strArr = wait_msg.split('');
+                strArr[this.msgIdx] = 'x';
+                this.waitMsg = strArr.join('');
+                this.msgIdx++;
+                if(this.msgIdx === wait_msg.length){
+                    this.msgIdx = 0;
+                }
+                setTimeout(() => {
+                    this.incrWait()
+                }, 250);
+            }
+        //});
+    }
+
 }
