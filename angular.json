@@ -26,12 +26,18 @@
                         "assets": [
                             {
                                 "glob": "**/*",
+                                "ignore": ["package.json"],
                                 "input": "src/assets/",
                                 "output": "/assets/"
                             },
                             {
                                 "glob": "favicon.ico",
                                 "input": "src/",
+                                "output": "/"
+                            },
+                            {
+                                "glob": "package.json",
+                                "input": "src/assets/",
                                 "output": "/"
                             }
                         ],
