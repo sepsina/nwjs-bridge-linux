@@ -615,14 +615,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      */
     startWait(){
-        //this.ngZone.run(()=>{
-            this.progressFlag = true;
-            this.waitMsg = 'wait...';
-            this.msgIdx = 0;
-            setTimeout(() => {
-                this.incrWait()
-            }, 250);
-        //});
+        this.progressFlag = true;
+        this.waitMsg = 'wait...';
+        /*
+        this.msgIdx = 0;
+        setTimeout(() => {
+            this.incrWait()
+        }, 250);
+        */
     }
 
     /***********************************************************************************************
@@ -632,20 +632,18 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      */
     incrWait(){
-        //this.ngZone.run(()=>{
-            if(this.progressFlag === true){
-                let strArr = wait_msg.split('');
-                strArr[this.msgIdx] = 'x';
-                this.waitMsg = strArr.join('');
-                this.msgIdx++;
-                if(this.msgIdx === wait_msg.length){
-                    this.msgIdx = 0;
-                }
-                setTimeout(() => {
-                    this.incrWait()
-                }, 250);
+        if(this.progressFlag === true){
+            let strArr = wait_msg.split('');
+            strArr[this.msgIdx] = 'x';
+            this.waitMsg = strArr.join('');
+            this.msgIdx++;
+            if(this.msgIdx === wait_msg.length){
+                this.msgIdx = 0;
             }
-        //});
+            setTimeout(() => {
+                this.incrWait()
+            }, 250);
+        }
     }
 
 }
