@@ -282,6 +282,11 @@ export interface tempEvent_t {
     endPoint: number;
 }
 
+export interface msgLogs_t {
+    text: string;
+    color: string;
+}
+
 
 
 

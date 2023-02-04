@@ -1,10 +1,12 @@
 ﻿import {Injectable} from '@angular/core';
+import { msgLogs_t } from '../gIF';
+import { EventsService } from './events.service';
 
 @Injectable({
     providedIn: 'root',
 })
 export class UtilsService {
-    constructor() {
+    constructor(private events: EventsService) {
         // ---
     }
 
@@ -133,5 +135,15 @@ export class UtilsService {
             extHex[i] = ('0' + dv.getUint8(i).toString(16)).slice(-2);
         }
         return extHex.join(':');
+    }
+
+    public sendMsg(msg: string, color: string = 'black'){
+        const log = `${this.timeStamp()} ${msg}`;
+        console.log(log);
+        const msgLog: msgLogs_t = {
+            text: log,
+            color: color
+        };
+        this.events.publish('logMsg', msgLog);
     }
 }

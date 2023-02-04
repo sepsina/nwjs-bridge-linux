@@ -44,7 +44,7 @@ export class SerialLinkService implements OnDestroy {
             this.addBind(JSON.parse(bind));
         });
 
-        this.port.checkCom();
+        //this.port.listComPorts();
 
         setTimeout(()=>{
             this.cleanAgedAttribs();

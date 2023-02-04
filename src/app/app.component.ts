@@ -22,6 +22,7 @@ import { environment } from 'src/environments/environment';
 
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { catchError, of, throwError } from 'rxjs';
+import { ShowLogs } from './logs/show-logs';
 
 const DUMMY_SCROLL = '- scroll -';
 const dumyScroll: gIF.scroll_t = {
@@ -71,6 +72,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     waitMsg = 'wait';
     msgIdx = 0;
 
+    msgLogs: gIF.msgLogs_t[] = [];
+
     constructor(private events: EventsService,
                 private serialLink: SerialLinkService,
                 private udp: UdpService,
@@ -107,6 +110,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.events.subscribe('temp_event', (event: gIF.tempEvent_t)=>{
             this.tempEvent(event);
+        });
+
+        this.events.subscribe('logMsg', (msg: gIF.msgLogs_t)=>{
+            while(this.msgLogs.length >= 20) {
+                this.msgLogs.shift();
+            }
+            this.msgLogs.push(msg);
         });
     }
 
@@ -466,6 +476,31 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
             const dlgRef = this.matDialog.open(EditStats, dialogConfig);
 
+            dlgRef.afterOpened().subscribe(()=>{
+                this.progressFlag = false;
+            });
+        }, 10);
+    }
+
+    /***********************************************************************************************
+     * @fn          showLogs
+     *
+     * @brief
+     *
+     */
+    showLogs() {
+
+        this.startWait();
+        setTimeout(()=>{
+            const dialogConfig = new MatDialogConfig();
+            dialogConfig.data = JSON.stringify(this.msgLogs); //[...this.msgLogs];
+            dialogConfig.width = '65%';
+            dialogConfig.autoFocus = false;
+            dialogConfig.disableClose = true;
+            dialogConfig.panelClass = 'show-logs-container';
+            dialogConfig.restoreFocus = false;
+
+            const dlgRef = this.matDialog.open(ShowLogs, dialogConfig);
             dlgRef.afterOpened().subscribe(()=>{
                 this.progressFlag = false;
             });

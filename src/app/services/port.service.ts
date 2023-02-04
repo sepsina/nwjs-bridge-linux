@@ -38,10 +38,10 @@ export class PortService {
     private tmoFlag = false;
     private comFlag = false;
 
-    //private slPort = {} as any;
     private comPorts = [];
-    //private SerialPort = window.nw.require('chrome-apps-serialport').SerialPort;
-    private connID: number;
+    private connID = -1;
+
+    //private listPortsFlag = false;
 
     constructor(private events: EventsService,
                 private utils: UtilsService) {
@@ -59,6 +59,12 @@ export class PortService {
         chrome.serial.onReceiveError.addListener((info: any)=>{
                 this.rcvErrCB(info);
         });
+        setTimeout(()=>{
+            this.checkCom();
+        }, 15000);
+        setTimeout(()=>{
+            this.listComPorts();
+        }, 1000);
     }
 
     /***********************************************************************************************
@@ -67,21 +73,20 @@ export class PortService {
      * brief
      *
      */
-    async checkCom() {
-
+    checkCom() {
         if(this.comFlag == false) {
             this.hostCmdQueue = [];
             this.hostCmdFlag = false;
-            if(this.searchPortFlag == false) {
+            if(this.validPortFlag === true){
                 setTimeout(()=>{
-                    this.listComPorts();
-                }, 100);
+                    this.closeComPort();
+                }, 0);
             }
         }
         this.comFlag = false;
         setTimeout(()=>{
             this.checkCom();
-        }, 15000);
+        }, 30000);
     }
 
     /***********************************************************************************************
@@ -91,8 +96,8 @@ export class PortService {
      *
      */
     closeComPort() {
-
         if(this.connID > -1){
+            this.utils.sendMsg('close port', 'red');
             chrome.serial.disconnect(
                 this.connID,
                 (result)=>{
@@ -101,7 +106,7 @@ export class PortService {
                     this.validPortFlag = false;
                     setTimeout(() => {
                         this.findComPort();
-                    }, 100);
+                    }, 200);
                 }
             );
         }
@@ -114,33 +119,28 @@ export class PortService {
      *
      */
     listComPorts() {
-
-        if(this.searchPortFlag == true){
-            return;
-        }
         chrome.serial.getDevices((ports)=>{
             this.comPorts = [];
             for(let i = 0; i < ports.length; i++){
-                if(ports[i].productId === 0x6015){      // FX230
-                    if(ports[i].vendorId === 0x0403){   // FTDI
+                if(ports[i].vendorId === 0x0403){      // FTDI
+                    if(ports[i].productId === 0x6015){ // FX230
                         this.comPorts.push(ports[i]);
                     }
                 }
             }
-            console.log(this.comPorts);
             if(this.comPorts.length) {
                 this.searchPortFlag = true;
                 this.portIdx = 0;
                 setTimeout(()=>{
                     this.findComPort();
-                }, 100);
+                }, 200);
             }
             else {
                 this.searchPortFlag = false;
                 setTimeout(()=>{
                     this.listComPorts();
-                }, 1000);
-                console.log('no com ports');
+                }, 2000);
+                this.utils.sendMsg('no com ports', 'red');
             }
         });
     }
@@ -153,14 +153,14 @@ export class PortService {
      */
     private findComPort() {
 
-        if(this.searchPortFlag == false){
-            setTimeout(() => {
+        if(this.searchPortFlag === false){
+            setTimeout(()=>{
                 this.listComPorts();
             }, 1000);
             return;
         }
         let portPath = this.comPorts[this.portIdx].path;
-        console.log('testing: ', portPath);
+        this.utils.sendMsg(`testing: ${portPath}`, 'blue');
         let connOpts = {
             bitrate: 115200
         };
@@ -169,7 +169,6 @@ export class PortService {
             connOpts,
             (connInfo)=>{
                 if(connInfo){
-                    console.log(`con ID: ${connInfo.connectionId}`);
                     this.connID = connInfo.connectionId;
                     this.portOpenFlag = true;
                     this.testPortTMO = setTimeout(()=>{
@@ -178,10 +177,10 @@ export class PortService {
                     this.testPortReq();
                 }
                 else {
-                    console.log('[ err ] ' + chrome.runtime.lastError.message);
+                    this.utils.sendMsg(`err: ${chrome.runtime.lastError.message}`, 'red');
                     setTimeout(() => {
                         this.findComPort();
-                    }, 100);
+                    }, 200);
                 }
             }
         );
@@ -303,7 +302,7 @@ export class PortService {
                         clearTimeout(this.testPortTMO);
                         this.validPortFlag = true;
                         this.searchPortFlag = false;
-                        console.log('port valid');
+                        this.utils.sendMsg('port valid', 'green');
                     }
                 }
                 break;
@@ -320,13 +319,13 @@ export class PortService {
                 dataHost.numSrcBinds = msgView.getInt8(idx++);
                 let ttl = msgView.getUint16(idx, gConst.LE);
 
-                let log = this.utils.timeStamp();
-                log += ' host annce ->';
-                log += ` shortAddr: 0x${dataHost.shortAddr.toString(16).padStart(4, '0').toUpperCase()},`;
-                log += ` extAddr: ${this.utils.extToHex(dataHost.extAddr)},`;
-                log += ` numAttrSets: ${dataHost.numAttrSets},`;
-                log += ` numSrcBinds: ${dataHost.numSrcBinds}`;
-                console.log(log);
+                //let log = this.utils.timeStamp();
+                let log = 'host ->';
+                log += ` short: 0x${dataHost.shortAddr.toString(16).padStart(4, '0').toUpperCase()},`;
+                log += ` ext: ${this.utils.extToHex(dataHost.extAddr)},`;
+                log += ` numAttr: ${dataHost.numAttrSets},`;
+                log += ` numBinds: ${dataHost.numSrcBinds}`;
+                this.utils.sendMsg(log);
 
                 if(this.hostCmdQueue.length > 15) {
                     this.hostCmdQueue = [];
@@ -372,7 +371,7 @@ export class PortService {
                 if(idx > -1) {
                     msgData[idx] = 32;
                 }
-                console.log(String.fromCharCode.apply(null, msgData));
+                this.utils.sendMsg(String.fromCharCode.apply(null, msgData));
                 break;
             }
             case gConst.SL_MSG_READ_ATTR_SET_AT_IDX: {
@@ -479,10 +478,10 @@ export class PortService {
                 if(msgSeqNum == this.seqNum) {
                     let status = msgView.getUint8(msgIdx++);
                     if(status == gConst.SL_CMD_OK) {
-                        console.log('wr binds status: OK');
+                        this.utils.sendMsg('wr binds status: OK');
                     }
                     else {
-                        console.log('wr binds status: FAIL');
+                        this.utils.sendMsg('wr binds status: FAIL');
                     }
                     this.hostCmdQueue.shift();
                     if(this.hostCmdQueue.length > 0) {
@@ -576,7 +575,7 @@ export class PortService {
      */
     private hostCmdTmo() {
 
-        console.log('--- READ_HOST_TMO ---');
+        this.utils.sendMsg('--- READ_HOST_TMO ---', 'red');
 
         if(this.hostCmdQueue.length == 0) {
             this.hostCmdFlag = false;
@@ -925,7 +924,7 @@ export class PortService {
                             break;
                         }
                     }
-                    console.log(`send err: ${sendInfo.error}`);
+                    this.utils.sendMsg(`send err: ${sendInfo.error}`, 'red');
                 }
                 if(this.tmoFlag === true){
                     this.tmoFlag = false;
@@ -945,7 +944,7 @@ export class PortService {
      */
     rcvErrCB(info: any) {
         if(info.connectionId === this.connID){
-            console.log(`rcv err: ${info.error}`);
+            this.utils.sendMsg(`port err: ${info.error}`, 'red');
             switch(info.error){
                 case 'disconnected':
                 case 'device_lost':
