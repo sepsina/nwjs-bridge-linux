@@ -285,6 +285,7 @@ export interface tempEvent_t {
 export interface msgLogs_t {
     text: string;
     color: string;
+    id: number;
 }
 
 

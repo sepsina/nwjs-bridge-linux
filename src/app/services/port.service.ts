@@ -140,7 +140,7 @@ export class PortService {
                 setTimeout(()=>{
                     this.listComPorts();
                 }, 2000);
-                this.utils.sendMsg('no com ports', 'red');
+                this.utils.sendMsg('no com ports', 'red', 7);
             }
         });
     }
