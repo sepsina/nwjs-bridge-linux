@@ -320,7 +320,7 @@ export class StorageService {
      */
     delThermostat(thermostat: gIF.thermostat_t) {
 
-        const key = this.thermostatKey(thermostat.shortAddr, thermostat.endPoint);
+        const key = this.thermostatKey(thermostat.extAddr, thermostat.endPoint);
         localStorage.removeItem(key);
 
         return key;
@@ -348,7 +348,7 @@ export class StorageService {
      */
     storeThermostat(thermostat: gIF.thermostat_t) {
 
-        const key = this.thermostatKey(thermostat.shortAddr, thermostat.endPoint);
+        const key = this.thermostatKey(thermostat.extAddr, thermostat.endPoint);
         localStorage.setItem(key, JSON.stringify(thermostat));
 
         this.nvThermostatsMap.set(key, thermostat);

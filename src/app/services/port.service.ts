@@ -123,7 +123,8 @@ export class PortService {
             this.comPorts = [];
             for(let i = 0; i < ports.length; i++){
                 if(ports[i].vendorId === 0x0403){      // FTDI
-                    if(ports[i].productId === 0x6015){ // FX230
+                    //if(ports[i].productId === 0x6015){ // FX230
+                    if(ports[i].productId === 0x6001){   // FT232RL
                         this.comPorts.push(ports[i]);
                     }
                 }
@@ -560,11 +561,9 @@ export class PortService {
                 }
             }
         }
-        /*
         this.hostCmdTmoRef = setTimeout(()=>{
             this.hostCmdTmo();
         }, gConst.RD_HOST_TMO);
-        */
     }
 
     /***********************************************************************************************
@@ -577,7 +576,7 @@ export class PortService {
 
         this.utils.sendMsg('--- READ_HOST_TMO ---', 'red');
 
-        if(this.hostCmdQueue.length == 0) {
+        if(this.hostCmdQueue.length === 0) {
             this.hostCmdFlag = false;
             return;
         }
@@ -615,11 +614,9 @@ export class PortService {
                 break;
             }
         }
-        /*
         this.hostCmdTmoRef = setTimeout(()=>{
             this.hostCmdTmo();
         }, gConst.RD_HOST_TMO);
-        */
     }
 
     /***********************************************************************************************
@@ -926,12 +923,14 @@ export class PortService {
                     }
                     this.utils.sendMsg(`send err: ${sendInfo.error}`, 'red');
                 }
+                /*
                 if(this.tmoFlag === true){
                     this.tmoFlag = false;
                     this.hostCmdTmoRef = setTimeout(()=>{
                         this.hostCmdTmo();
                     }, gConst.RD_HOST_TMO);
                 }
+                */
             }
         );
     }
