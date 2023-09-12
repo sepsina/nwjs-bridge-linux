@@ -5,6 +5,8 @@ export const HEAD_LEN = 5;
 export const LEN_IDX = 2;
 export const CRC_IDX = 4;
 
+export const HIST_LEN = 50;
+
 export const DFLT_IMG_DIR = 'files';
 export const DFLT_BKG_IMG = '../../assets/floor_plan.jpg';
 export const DFLT_IMG_NAME = 'floor_plan';
@@ -63,16 +65,14 @@ export const SH_006_BASE = 600;
 export const SH_006_SH = 601;
 export const SH_006_BAT = 602;
 
-export const BME280_007_BASE = 700;
-export const BME280_007_T = 701;
-export const BME280_007_RH = 702;
-export const BME280_007_P = 703;
-export const BME280_007_BAT = 704;
-
 export const DBL_SW_008_BASE = 800;
 export const DBL_SW_008_PB_1 = 801;
 export const DBL_SW_008_PB_2 = 802;
 export const DBL_SW_008_BAT = 803;
+
+export const TGL_SW_011_BASE = 1100;
+export const TGL_SW_011_SW = 1101;
+export const TGL_SW_011_BAT = 1102;
 
 export const SSR_009_BASE = 900;
 export const SSR_009_RELAY = 901;
@@ -97,10 +97,11 @@ export const RH_SENSORS = 0x0006;
 export const P_ATM_SENSORS = 0x0007;
 export const BAT_VOLTS = 0x0008;
 
+export const NO_UNIT = 0;
 export const DEG_C = 1;
 export const DEG_F = 2;
-export const M_BAR = 3;
-export const IN_HG = 4;
+export const RH_UNIT = 3;
+export const VOLT_UNIT = 4;
 
 //export const PUB_IP_KEY = 'public-ip';
 //export const FREE_DNS_KEY = 'free-dns';

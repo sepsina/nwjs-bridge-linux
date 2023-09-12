@@ -6,6 +6,7 @@ import * as gConst from '../gConst';
 import * as gIF from '../gIF';
 
 const UDP_PORT = 22802;
+const ANNCE_TMO = 3000;
 
 @Injectable({
     providedIn: 'root',
@@ -13,13 +14,14 @@ const UDP_PORT = 22802;
 export class UdpService {
 
     private dgram;
-    udpSocket;
+    public udpSocket;
 
-    msgBuf = new ArrayBuffer(1024);
-    msg = new DataView(this.msgBuf);
+    msgBuf = window.nw.Buffer.alloc(1024);
+    rwBuf = new gIF.rwBuf_t();
 
     constructor(private serial: SerialLinkService,
                 private utils: UtilsService) {
+        this.rwBuf.wrBuf = this.msgBuf;
         this.dgram = window.nw.require('dgram');
         this.udpSocket = this.dgram.createSocket('udp4');
         this.udpSocket.on('message', (msg, rinfo)=>{
@@ -29,7 +31,7 @@ export class UdpService {
             console.log(`server error:\n${err.stack}`);
         });
         this.udpSocket.on('listening', ()=>{
-            let address = this.udpSocket.address();
+            const address = this.udpSocket.address();
             console.log(`server listening ${address.address}:${address.port}`);
         });
         this.udpSocket.bind(UDP_PORT, ()=>{
@@ -55,20 +57,18 @@ export class UdpService {
      */
     public udpOnMsg(msg, rem) {
 
-        let msgBuf = this.utils.bufToArrayBuf(msg);
-        let cmdView = new DataView(msgBuf);
-        let msgIdx = 0;
-        let cmdIdx = 0;
+        this.rwBuf.rdBuf = msg;
+        this.rwBuf.rdIdx = 0;
+        this.rwBuf.wrIdx = 0;
 
-        let pktFunc = cmdView.getUint16(cmdIdx, gConst.LE);
-        cmdIdx += 2;
+        const pktFunc = this.rwBuf.read_uint16_LE();
         switch(pktFunc) {
             case gConst.BRIDGE_ID_REQ: {
-                let rnd = Math.floor(Math.random() * 100) + 50;
+                const rnd = Math.floor(Math.random() * 100) + 50;
                 setTimeout(()=>{
-                    this.msg.setUint16(0, gConst.BRIDGE_ID_RSP, gConst.LE);
-                    let bufData = this.utils.arrayBufToBuf(this.msgBuf.slice(0, 2));
-                    this.udpSocket.send(bufData, 0, 2, rem.port, rem.address, (err)=>{
+                    this.rwBuf.write_uint16_LE(gConst.BRIDGE_ID_RSP);
+                    const len = this.rwBuf.wrIdx;
+                    this.udpSocket.send(this.msgBuf.subarray(0, len), 0, len, rem.port, rem.address, (err)=>{
                         if(err) {
                             console.log('UDP ERR: ' + JSON.stringify(err));
                         }
@@ -77,109 +77,87 @@ export class UdpService {
                 break;
             }
             case gConst.ON_OFF_ACTUATORS: {
-                this.msg.setUint16(msgIdx, pktFunc, gConst.LE);
-                msgIdx += 2;
-                let startIdx = cmdView.getUint16(cmdIdx, gConst.LE);
-                cmdIdx += 2;
-                this.msg.setUint16(msgIdx, startIdx, gConst.LE);
-                msgIdx += 2;
-                let numIdx = msgIdx;
+                this.rwBuf.write_uint16_LE(pktFunc);
+                const startIdx = this.rwBuf.read_uint16_LE();
+                this.rwBuf.write_uint16_LE(startIdx);
+                const numIdx = this.rwBuf.wrIdx;
                 let numVals = 0;
-                this.msg.setUint16(msgIdx, numVals, gConst.LE);
-                msgIdx += 2;
-                let doneIdx = msgIdx;
-                this.msg.setUint8(msgIdx, 1);
-                msgIdx++;
+                this.rwBuf.write_uint16_LE(numVals);
+                const doneIdx = this.rwBuf.wrIdx;
+                this.rwBuf.write_uint8(1); // done field
                 let valIdx = 0;
                 for(let attrSet of this.serial.setMap.values()) {
                     if(attrSet.clusterID == gConst.CLUSTER_ID_GEN_ON_OFF) {
                         if(valIdx >= startIdx) {
                             numVals++;
-                            this.msg.setUint32(msgIdx, attrSet.partNum, gConst.LE);
-                            msgIdx += 4;
-                            this.msg.setFloat64(msgIdx, attrSet.extAddr, gConst.LE);
-                            msgIdx += 8;
-                            this.msg.setUint8(msgIdx, attrSet.endPoint);
-                            msgIdx++;
-                            this.msg.setUint8(msgIdx, attrSet.setVals.state);
-                            msgIdx++;
-                            this.msg.setUint8(msgIdx, attrSet.setVals.level);
-                            msgIdx++;
-                            this.msg.setUint8(msgIdx, attrSet.setVals.name.length);
-                            msgIdx++;
+                            this.rwBuf.write_uint32_LE(attrSet.partNum);
+                            this.rwBuf.write_double_LE(attrSet.extAddr);
+                            this.rwBuf.write_uint8(attrSet.endPoint);
+                            this.rwBuf.write_uint8(attrSet.setVals.state);
+                            this.rwBuf.write_uint8(attrSet.setVals.level);
+                            this.rwBuf.write_uint8(attrSet.setVals.name.length);
                             for(let i = 0; i < attrSet.setVals.name.length; i++) {
-                                this.msg.setUint8(msgIdx, attrSet.setVals.name.charCodeAt(i));
-                                msgIdx++;
+                                this.rwBuf.write_uint8(attrSet.setVals.name.charCodeAt(i));
                             }
+                            //this.rwBuf.write_uint32_LE(this.utils.ipToLong(attrSet.ip));
+                            //this.rwBuf.write_uint16_LE(attrSet.port);
                         }
                         valIdx++;
                     }
-                    if(msgIdx > 500) {
-                        this.msg.setUint8(doneIdx, 0);
+                    if(this.rwBuf.wrIdx > 500) {
+                        this.rwBuf.modify_uint8(0, doneIdx);
                         break; // exit for-loop
                     }
                 }
                 if(numVals) {
-                    this.msg.setUint16(numIdx, numVals, gConst.LE);
+                    this.rwBuf.modify_uint16_LE(numVals, numIdx);
                 }
-                const len = msgIdx;
-                let bufData = this.utils.arrayBufToBuf(this.msgBuf.slice(0, len));
-                this.udpSocket.send(bufData, 0, len, rem.port, rem.address, (err)=>{
+                const len = this.rwBuf.wrIdx;
+                this.udpSocket.send(this.msgBuf.subarray(0, len), 0, len, rem.port, rem.address, (err)=>{
                     if(err) {
                         console.log('UDP ERR: ' + JSON.stringify(err));
                     }
                 });
+
+
                 break;
             }
             case gConst.T_SENSORS: {
-                this.msg.setUint16(msgIdx, pktFunc, gConst.LE);
-                msgIdx += 2;
-                let startIdx = cmdView.getUint16(cmdIdx, gConst.LE);
-                cmdIdx += 2;
-                this.msg.setUint16(msgIdx, startIdx, gConst.LE);
-                msgIdx += 2;
-                let numIdx = msgIdx;
+                this.rwBuf.write_uint16_LE(pktFunc);
+                const startIdx = this.rwBuf.read_uint16_LE();
+                this.rwBuf.write_uint16_LE(startIdx);
+                const numIdx = this.rwBuf.wrIdx;
                 let numVals = 0;
-                this.msg.setUint16(msgIdx, numVals, gConst.LE);
-                msgIdx += 2;
-                let doneIdx = msgIdx;
-                this.msg.setUint8(msgIdx, 1);
-                msgIdx++;
+                this.rwBuf.write_uint16_LE(numVals);
+                let doneIdx = this.rwBuf.wrIdx;
+                this.rwBuf.write_uint8(1);
                 let valIdx = 0;
                 for(let attrSet of this.serial.setMap.values()) {
                     if(attrSet.clusterID == gConst.CLUSTER_ID_MS_TEMPERATURE_MEASUREMENT) {
                         if(valIdx >= startIdx) {
                             numVals++;
-                            this.msg.setUint32(msgIdx, attrSet.partNum, gConst.LE);
-                            msgIdx += 4;
-                            this.msg.setFloat64(msgIdx, attrSet.extAddr, gConst.LE);
-                            msgIdx += 8;
-                            this.msg.setUint8(msgIdx, attrSet.endPoint);
-                            msgIdx++;
-                            this.msg.setInt16(msgIdx, 10 * attrSet.setVals.t_val, gConst.LE);
-                            msgIdx += 2;
-                            this.msg.setUint16(msgIdx, attrSet.setVals.units, gConst.LE);
-                            msgIdx += 2;
-                            this.msg.setUint8(msgIdx, attrSet.setVals.name.length);
-                            msgIdx++;
+                            this.rwBuf.write_uint32_LE(attrSet.partNum);
+                            this.rwBuf.write_double_LE(attrSet.extAddr);
+                            this.rwBuf.write_uint8(attrSet.endPoint);
+                            this.rwBuf.write_int16_LE(10 * attrSet.setVals.t_val);
+                            this.rwBuf.write_uint16_LE(attrSet.setVals.units);
+                            this.rwBuf.write_uint8(attrSet.setVals.name.length);
                             for(let i = 0; i < attrSet.setVals.name.length; i++) {
-                                this.msg.setUint8(msgIdx, attrSet.setVals.name.charCodeAt(i));
-                                msgIdx++;
+                                this.rwBuf.write_uint8(attrSet.setVals.name.charCodeAt(i));
                             }
                         }
                         valIdx++;
                     }
-                    if(msgIdx > 500) {
-                        this.msg.setUint8(doneIdx, 0);
+                    if(this.rwBuf.wrIdx > 500) {
+                        this.rwBuf.modify_uint8(0, doneIdx);
                         break; // exit for-loop
                     }
                 }
                 if(numVals) {
-                    this.msg.setUint16(numIdx, numVals, gConst.LE);
+                    this.rwBuf.modify_uint16_LE(numVals, numIdx);
                 }
-                const len = msgIdx;
-                let bufData = this.utils.arrayBufToBuf(this.msgBuf.slice(0, len));
-                this.udpSocket.send(bufData, 0, len, rem.port, rem.address, (err)=>{
+                const len = this.rwBuf.wrIdx;
+                this.udpSocket.send(this.msgBuf.subarray(0, len), 0, len, rem.port, rem.address, (err)=>{
                     if(err) {
                         console.log('UDP ERR: ' + JSON.stringify(err));
                     }
@@ -187,72 +165,59 @@ export class UdpService {
                 break;
             }
             case gConst.RH_SENSORS: {
-                this.msg.setUint16(msgIdx, pktFunc, gConst.LE);
-                msgIdx += 2;
-                let startIdx = cmdView.getUint16(cmdIdx, gConst.LE);
-                cmdIdx += 2;
-                this.msg.setUint16(msgIdx, startIdx, gConst.LE);
-                msgIdx += 2;
-                let numIdx = msgIdx;
+                this.rwBuf.write_uint16_LE(pktFunc);
+                let startIdx = this.rwBuf.read_uint16_LE();
+                this.rwBuf.write_uint16_LE(startIdx);
+                let numIdx = this.rwBuf.wrIdx;
                 let numVals = 0;
-                this.msg.setUint16(msgIdx, numVals, gConst.LE);
-                msgIdx += 2;
-                let doneIdx = msgIdx;
-                this.msg.setUint8(msgIdx, 1);
-                msgIdx++;
+                this.rwBuf.write_uint16_LE(numVals);
+                let doneIdx = this.rwBuf.wrIdx;
+                this.rwBuf.write_uint8(1);
                 let valIdx = 0;
                 for(let attrSet of this.serial.setMap.values()) {
                     if(attrSet.clusterID == gConst.CLUSTER_ID_MS_RH_MEASUREMENT) {
                         if(valIdx >= startIdx) {
                             numVals++;
-                            this.msg.setUint32(msgIdx, attrSet.partNum, gConst.LE);
-                            msgIdx += 4;
-                            this.msg.setFloat64(msgIdx, attrSet.extAddr, gConst.LE);
-                            msgIdx += 8;
-                            this.msg.setUint8(msgIdx, attrSet.endPoint);
-                            msgIdx++;
-                            this.msg.setUint16(msgIdx, 10 * attrSet.setVals.rh_val, gConst.LE);
-                            msgIdx += 2;
-                            this.msg.setUint8(msgIdx, attrSet.setVals.name.length);
-                            msgIdx++;
+                            this.rwBuf.write_uint32_LE(attrSet.partNum);
+                            this.rwBuf.write_double_LE(attrSet.extAddr);
+                            this.rwBuf.write_uint8(attrSet.endPoint);
+                            this.rwBuf.write_uint16_LE(10 * attrSet.setVals.rh_val);
+                            this.rwBuf.write_uint8(attrSet.setVals.name.length);
                             for(let i = 0; i < attrSet.setVals.name.length; i++) {
-                                this.msg.setUint8(msgIdx, attrSet.setVals.name.charCodeAt(i));
-                                msgIdx++;
+                                this.rwBuf.write_uint8(attrSet.setVals.name.charCodeAt(i));
                             }
                         }
                         valIdx++;
                     }
-                    if(msgIdx > 500) {
-                        this.msg.setUint8(doneIdx, 0);
+                    if(this.rwBuf.wrIdx > 500) {
+                        this.rwBuf.modify_uint8(0, doneIdx);
                         break; // exit for-loop
                     }
                 }
                 if(numVals) {
-                    this.msg.setUint16(numIdx, numVals, gConst.LE);
+                    this.rwBuf.modify_uint16_LE(numVals, numIdx);
                 }
-                const len = msgIdx;
-                let bufData = this.utils.arrayBufToBuf(this.msgBuf.slice(0, len));
-                this.udpSocket.send(bufData, 0, len, rem.port, rem.address, (err)=>{
+                const len = this.rwBuf.wrIdx;
+                this.udpSocket.send(this.msgBuf.subarray(0, len), 0, len, rem.port, rem.address, (err)=>{
                     if(err) {
                         console.log('UDP ERR: ' + JSON.stringify(err));
                     }
                 });
                 break;
+
             }
             case gConst.UDP_ZCL_CMD: {
-                let zclCmd = {} as gIF.udpZclReq_t;
+                const zclCmd = {} as gIF.udpZclReq_t;
                 zclCmd.ip = msg.remoteAddress;
                 zclCmd.port = msg.remotePort;
-                zclCmd.extAddr = cmdView.getFloat64(cmdIdx, gConst.LE);
-                cmdIdx += 8;
-                zclCmd.endPoint = cmdView.getUint8(cmdIdx++);
-                zclCmd.clusterID = cmdView.getUint16(cmdIdx, gConst.LE);
-                cmdIdx += 2;
-                zclCmd.hasRsp = cmdView.getUint8(cmdIdx++);
-                zclCmd.cmdLen = cmdView.getUint8(cmdIdx++);
+                zclCmd.extAddr = this.rwBuf.read_double_LE();
+                zclCmd.endPoint = this.rwBuf.read_uint8();
+                zclCmd.clusterID = this.rwBuf.read_uint16_LE();
+                zclCmd.hasRsp = this.rwBuf.read_uint8();
+                zclCmd.cmdLen = this.rwBuf.read_uint8();
                 zclCmd.cmd = [];
                 for(let i = 0; i < zclCmd.cmdLen; i++) {
-                    zclCmd.cmd[i] = cmdView.getUint8(cmdIdx++);
+                    zclCmd.cmd[i] = this.rwBuf.read_uint8();
                 }
                 this.serial.udpZclCmd(JSON.stringify(zclCmd));
                 break;
