@@ -7,11 +7,11 @@ import * as gConst from '../gConst';
 import * as gIF from '../gIF'
 
 @Component({
-    selector: 'app-show-logs',
-    templateUrl: './show-logs.html',
-    styleUrls: ['./show-logs.css']
+    selector: 'app-about',
+    templateUrl: './about.html',
+    styleUrls: ['./about.css']
 })
-export class ShowLogs implements OnInit, AfterViewInit {
+export class About implements OnInit, AfterViewInit {
 
     @HostListener('document:keyup', ['$event'])
     handleKeyboardEvent(event: KeyboardEvent) {
@@ -23,14 +23,13 @@ export class ShowLogs implements OnInit, AfterViewInit {
         }
     }
 
-    scrollFlag = true;
+    recs: string[] = [];
 
-    constructor(private dialogRef: MatDialogRef<ShowLogs>,
+    constructor(private dialogRef: MatDialogRef<About>,
                 @Inject(MAT_DIALOG_DATA) public dlgData: any,
                 private events: EventsService,
                 public utils: UtilsService,
                 private ngZone: NgZone) {
-        // ---
     }
 
     /***********************************************************************************************
@@ -40,14 +39,14 @@ export class ShowLogs implements OnInit, AfterViewInit {
      *
      */
     ngOnInit(): void {
-        this.events.subscribe('logMsg', (msg: gIF.msgLogs_t)=>{
-            if(this.scrollFlag == true) {
-                let logsDiv = document.getElementById('logList');
-                if(logsDiv){
-                    logsDiv.scrollTop = logsDiv.scrollHeight;
-                }
-            }
-        });
+        //this.recs.push(`attr-name: ${this.dlgData.attr.name}`);
+        this.recs.push(`S/N: ${this.utils.extToHex(this.dlgData.attr.extAddr)}`);
+        let partDesc: gIF.part_t = this.dlgData.partMap.get(this.dlgData.attr.partNum);
+        if(partDesc) {
+            this.recs.push(`node: ${partDesc.devName}`);
+            this.recs.push(`part: ${partDesc.part}`);
+            this.recs.push(`url: ${partDesc.url}`);
+        }
     }
     /***********************************************************************************************
      * @fn          ngAfterViewInit
@@ -77,29 +76,6 @@ export class ShowLogs implements OnInit, AfterViewInit {
         this.dialogRef.close();
     }
 
-    /***********************************************************************************************
-     * fn          autoScroll
-     *
-     * brief
-     *
-     */
-    autoScrollChange(scroll) {
-        console.log(scroll);
-        this.scrollFlag = scroll;
-        if(scroll == true) {
-            let logsDiv = document.getElementById('logList');
-            logsDiv.scrollTop = logsDiv.scrollHeight;
-        }
-    }
 
-    /***********************************************************************************************
-     * fn          clearLogs
-     *
-     * brief
-     *
-     */
-    clearLogs() {
-        this.utils.msgLogs = [];
-    }
 
 }

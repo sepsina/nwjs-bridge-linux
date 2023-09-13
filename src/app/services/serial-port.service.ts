@@ -16,8 +16,8 @@ interface sl_msg {
 export class SerialPortService {
 
     private searchPortFlag = false;
-    private validPortFlag = false;
-    private portOpenFlag = false;
+    //private validPortFlag = false;
+    //private portOpenFlag = false;
     private portIdx = 0;
     private portPath = '';
 
@@ -27,8 +27,7 @@ export class SerialPortService {
     private calcCRC: number;
     private msgIdx: number;
     private isEsc = false;
-    //private rxBuf = new ArrayBuffer(1024);
-    //private rxMsg = new Uint8Array(this.rxBuf);
+
     private rxState: gIF.eRxState = gIF.eRxState.E_STATE_RX_WAIT_START;
 
     private msgType: number;
@@ -53,8 +52,6 @@ export class SerialPortService {
     rwBuf = new gIF.rwBuf_t();
 
     slMsg = {} as sl_msg;
-
-    //private listPortsFlag = false;
 
     constructor(private events: EventsService,
                 private utils: UtilsService) {
@@ -112,8 +109,8 @@ export class SerialPortService {
             const result = await this.closePortAsync(this.connID);
             if(result){
                 this.connID = -1;
-                this.portOpenFlag = false;
-                this.validPortFlag = false;
+                //this.portOpenFlag = false;
+                //this.validPortFlag = false;
                 setTimeout(() => {
                     this.findComPort();
                 }, 200);
@@ -183,7 +180,7 @@ export class SerialPortService {
         const connInfo: any = await this.serialConnectAsync(connOpts);
         if(connInfo){
             this.connID = connInfo.connectionId;
-            this.portOpenFlag = true;
+            //this.portOpenFlag = true;
             this.testPortTMO = setTimeout(()=>{
                 this.closeComPort();
             }, 1000);
@@ -323,7 +320,7 @@ export class SerialPortService {
                     const idNum = this.rwBuf.read_uint32_LE();
                     if(idNum === 0x67190110) {
                         clearTimeout(this.testPortTMO);
-                        this.validPortFlag = true;
+                        //this.validPortFlag = true;
                         this.searchPortFlag = false;
                         this.utils.sendMsg('port valid', 'green');
                     }

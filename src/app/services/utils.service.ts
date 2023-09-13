@@ -73,6 +73,14 @@ export class UtilsService {
         return `<${hours}:${minutes}:${seconds}>`;
     }
 
+    public secToTime(sec: number) {
+        const hours = (Math.floor(sec / 3600)).toString(10).padStart(2, '0');
+        sec %= 3600;
+        const minutes = (Math.floor(sec / 60)).toString(10).padStart(2, '0');
+        const seconds = (sec % 60).toString(10).padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
     public strToByteArr(str: string): number[] {
         let len = str.length;
         let strVal = str;
@@ -103,6 +111,12 @@ export class UtilsService {
         return ipl >>> 0;
     }
 
+    public bcastIP(ip: string): string {
+        const bcast_ip  = ip.split('.');
+        bcast_ip[3] = '255';
+        return bcast_ip.join('.');
+    }
+
     public arrayBufToBuf(arrayBuf: ArrayBuffer) {
         let buf = window.nw.Buffer.alloc(arrayBuf.byteLength);
         let view = new Uint8Array(arrayBuf);
@@ -131,12 +145,11 @@ export class UtilsService {
     }
 
     public extToHex(extAddr: number) {
-        let ab = new ArrayBuffer(8);
-        let dv = new DataView(ab);
-        dv.setFloat64(0, extAddr);
+        let buf = window.nw.Buffer.alloc(8);
+        buf.writeDoubleBE(extAddr);
         let extHex = [];
         for (let i = 0; i < 8; i++) {
-            extHex[i] = ('0' + dv.getUint8(i).toString(16)).slice(-2);
+            extHex[i] = buf.readUInt8(i).toString(16).padStart(2, '0').toUpperCase();
         }
         return extHex.join(':');
     }

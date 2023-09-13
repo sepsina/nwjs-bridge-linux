@@ -1,4 +1,4 @@
-import { Component, Inject, NgZone, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, Inject, NgZone, AfterViewInit, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { SerialLinkService } from '../services/serial-link.service';
 import { StorageService } from '../services/storage.service';
 import { UtilsService } from '../services/utils.service';
@@ -22,6 +22,16 @@ export class EditStats implements AfterViewInit {
 
     @ViewChild('onOffBoxRef', {read: ElementRef, static:false}) onOffBoxRef: ElementRef;
     @ViewChild('usedWrapRef', {read: ElementRef, static:false}) wrapRef: ElementRef;
+
+    @HostListener('document:keyup', ['$event'])
+    handleKeyboardEvent(event: KeyboardEvent) {
+        switch(event.key){
+            case 'Escape': {
+                this.close();
+                break;
+            }
+        }
+    }
 
     thermostatDesc: gIF.descVal_t[] = [];
 
@@ -71,6 +81,8 @@ export class EditStats implements AfterViewInit {
             if(attr.clusterID === gConst.CLUSTER_ID_MS_TEMPERATURE_MEASUREMENT){
                 let thermostat = {} as gIF.thermostat_t;
                 thermostat.name = attr.name;
+                //thermostat.ip = attr.ip;
+                //thermostat.port = attr.port;
                 thermostat.partNum = attr.partNum;
                 thermostat.extAddr = attr.extAddr;
                 thermostat.shortAddr = attr.shortAddr;
@@ -98,6 +110,8 @@ export class EditStats implements AfterViewInit {
                     let on_off_actuator = {} as gIF.on_off_actuator_t;
                     on_off_actuator.valid = true;
                     on_off_actuator.name = attr.name;
+                    //on_off_actuator.ip = attr.ip;
+                    //on_off_actuator.port = attr.port;
                     on_off_actuator.partNum = attr.partNum;
                     on_off_actuator.extAddr = attr.extAddr;
                     on_off_actuator.shortAddr = attr.shortAddr;
@@ -145,26 +159,27 @@ export class EditStats implements AfterViewInit {
      */
     setThermostat(thermostat: gIF.thermostat_t){
 
+        for(const on_off of this.on_off_used){
+            this.on_off_all.push(on_off);
+        }
         this.on_off_used = [];
 
         for(const actuator of thermostat.actuators){
-            const idx = this.on_off_all.findIndex((on_off)=>{
-                if(on_off.extAddr === actuator.extAddr){
-                    if(on_off.endPoint === actuator.endPoint){
-                        return true;
+            for(let i = 0; i < this.on_off_all.length; i++){
+                if(this.on_off_all[i].extAddr === actuator.extAddr){
+                    if(this.on_off_all[i].endPoint === actuator.endPoint){
+                        const used = this.on_off_all.splice(i, 1)[0];
+                        this.on_off_used.push(used);
                     }
                 }
-                return false;
-            });
-            if(idx > -1){
-                const used = this.on_off_all.splice(idx, 1)[0];
-                this.on_off_used.push(used);
             }
         }
         thermostat.actuators = [];
         for(const on_off of this.on_off_used){
             const actuator = {} as gIF.thermostatActuator_t;
             actuator.name = on_off.name;
+            //actuator.ip = on_off.ip;
+            //actuator.port = on_off.port;
             actuator.extAddr = on_off.extAddr;
             actuator.endPoint = on_off.endPoint;
             thermostat.actuators.push(actuator);
@@ -307,6 +322,8 @@ export class EditStats implements AfterViewInit {
 
             let actuator = {} as gIF.thermostatActuator_t;
             actuator.name = on_off.name;
+            //actuator.ip = on_off.ip;
+            //actuator.port = on_off.port;
             actuator.extAddr = on_off.extAddr;
             actuator.endPoint = on_off.endPoint;
 
