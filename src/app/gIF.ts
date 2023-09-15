@@ -205,6 +205,7 @@ export interface usbId_t {
 }
 
 export interface udpZclReq_t {
+    seqNum: number;
     ip: string;
     port: number;
     extAddr: number;
@@ -213,6 +214,16 @@ export interface udpZclReq_t {
     hasRsp: number;
     cmdLen: number;
     cmd: number[]
+}
+
+export interface udpZclRsp_t {
+    seqNum: number;
+    ip: string;
+    port: number;
+    extAddr: number;
+    endPoint: number;
+    clusterID: number;
+    status: number;
 }
 
 export interface dns_t {

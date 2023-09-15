@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { SerialLinkService } from './serial-link.service';
 import { UtilsService } from './utils.service';
+//import { EventsService } from './services/events.service';
+import { EventsService } from './events.service';
 
 import * as gConst from '../gConst';
 import * as gIF from '../gIF';
@@ -13,15 +15,20 @@ const ANNCE_TMO = 3000;
 })
 export class UdpService {
 
+    private nwk;
     private dgram;
     public udpSocket;
+
+    private ipAddr = '';
 
     msgBuf = window.nw.Buffer.alloc(1024);
     rwBuf = new gIF.rwBuf_t();
 
     constructor(private serial: SerialLinkService,
+                private events: EventsService,
                 private utils: UtilsService) {
         this.rwBuf.wrBuf = this.msgBuf;
+        this.nwk = window.nw.require('network');
         this.dgram = window.nw.require('dgram');
         this.udpSocket = this.dgram.createSocket('udp4');
         this.udpSocket.on('message', (msg, rinfo)=>{
@@ -37,6 +44,9 @@ export class UdpService {
         this.udpSocket.bind(UDP_PORT, ()=>{
             this.udpSocket.setBroadcast(true);
         });
+        setTimeout(()=>{
+            this.bridgeAnnce();
+        }, ANNCE_TMO);
     }
 
     /***********************************************************************************************
@@ -99,8 +109,6 @@ export class UdpService {
                             for(let i = 0; i < attrSet.setVals.name.length; i++) {
                                 this.rwBuf.write_uint8(attrSet.setVals.name.charCodeAt(i));
                             }
-                            //this.rwBuf.write_uint32_LE(this.utils.ipToLong(attrSet.ip));
-                            //this.rwBuf.write_uint16_LE(attrSet.port);
                         }
                         valIdx++;
                     }
@@ -118,8 +126,6 @@ export class UdpService {
                         console.log('UDP ERR: ' + JSON.stringify(err));
                     }
                 });
-
-
                 break;
             }
             case gConst.T_SENSORS: {
@@ -204,12 +210,12 @@ export class UdpService {
                     }
                 });
                 break;
-
             }
             case gConst.UDP_ZCL_CMD: {
                 const zclCmd = {} as gIF.udpZclReq_t;
-                zclCmd.ip = msg.remoteAddress;
-                zclCmd.port = msg.remotePort;
+                zclCmd.seqNum = this.rwBuf.read_uint8();
+                zclCmd.ip = rem.address;
+                zclCmd.port = rem.port;
                 zclCmd.extAddr = this.rwBuf.read_double_LE();
                 zclCmd.endPoint = this.rwBuf.read_uint8();
                 zclCmd.clusterID = this.rwBuf.read_uint16_LE();
@@ -219,12 +225,61 @@ export class UdpService {
                 for(let i = 0; i < zclCmd.cmdLen; i++) {
                     zclCmd.cmd[i] = this.rwBuf.read_uint8();
                 }
-                this.serial.udpZclCmd(JSON.stringify(zclCmd));
+                //this.serial.udpZclCmd(JSON.stringify(zclCmd));
+                this.events.publish('zcl_cmd', JSON.stringify(zclCmd));
                 break;
             }
             default:
                 // ---
                 break;
         }
+    }
+    /***********************************************************************************************
+     * fn          bridgeAnnce
+     *
+     * brief
+     *
+     */
+    bridgeAnnce() {
+        this.nwk.get_private_ip((err, ip)=>{
+            if(!err){
+                this.ipAddr = ip;
+                const bcastIP = this.utils.bcastIP(ip);
+                this.msgBuf.writeUInt16LE(gConst.BRIDGE_ID_RSP, 0);
+                this.udpSocket.send(this.msgBuf.subarray(0, 2), 0, 2, UDP_PORT, bcastIP, (err)=>{
+                    if(err) {
+                        console.log('UDP ERR: ' + JSON.stringify(err));
+                    }
+                });
+            }
+        });
+        setTimeout(()=>{
+            this.bridgeAnnce();
+        }, ANNCE_TMO);
+    }
+
+    /***********************************************************************************************
+     * fn          zclRsp
+     *
+     * brief
+     *
+     */
+    public zclRsp(rsp: gIF.udpZclRsp_t) {
+
+        this.rwBuf.wrIdx = 0;
+
+        this.rwBuf.write_uint16_LE(gConst.UDP_ZCL_CMD);
+        this.rwBuf.write_uint8(rsp.seqNum);
+        this.rwBuf.write_double_LE(rsp.extAddr);
+        this.rwBuf.write_uint8(rsp.endPoint);
+        this.rwBuf.write_uint16_LE(rsp.clusterID);
+        this.rwBuf.write_uint8(rsp.status);
+
+        const len = this.rwBuf.wrIdx;
+        this.udpSocket.send(this.msgBuf.subarray(0, len), 0, len, rsp.port, rsp.ip, (err)=>{
+            if(err) {
+                console.log('UDP ERR: ' + JSON.stringify(err));
+            }
+        });
     }
 }

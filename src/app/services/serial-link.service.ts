@@ -1,6 +1,5 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { StorageService } from './storage.service';
-import { SerialPortService } from './serial-port.service';
 import { EventsService } from './events.service';
 import { UtilsService } from './utils.service';
 import * as gConst from '../gConst';
@@ -16,7 +15,6 @@ export class SerialLinkService implements OnDestroy {
     setMap = new Map();
 
     constructor(private events: EventsService,
-                private serialPort: SerialPortService,
                 private storage: StorageService,
                 private utils: UtilsService,
                 private ngZone: NgZone) {
@@ -44,8 +42,6 @@ export class SerialLinkService implements OnDestroy {
             this.addBind(JSON.parse(bind));
         });
 
-        //this.port.listComPorts();
-
         setTimeout(()=>{
             this.cleanAgedAttribs();
         }, 60000);
@@ -65,16 +61,6 @@ export class SerialLinkService implements OnDestroy {
      */
     ngOnDestroy() {
         // ---
-    }
-
-    /***********************************************************************************************
-     * fn          closeComPort
-     *
-     * brief
-     *
-     */
-    closeComPort() {
-        this.serialPort.closeComPort();
     }
 
     /***********************************************************************************************
@@ -249,21 +235,21 @@ export class SerialLinkService implements OnDestroy {
      *
      * brief
      *
-     */
+     *
     public wrBind(bind: string) {
         this.events.publish('wr_bind', bind);
     }
-
+    */
     /***********************************************************************************************
      * fn          udpZclCmd
      *
      * brief
      *
-     */
+     *
     public udpZclCmd(zclCmd: string) {
         this.events.publish('zcl_cmd', zclCmd);
     }
-
+    */
     /***********************************************************************************************
      * fn          getKey
      *

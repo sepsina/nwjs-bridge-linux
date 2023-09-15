@@ -1,5 +1,6 @@
 ///<reference types="chrome"/>
 import {Injectable} from '@angular/core';
+import { UdpService } from './udp.service';
 import {EventsService} from './events.service';
 import {UtilsService} from './utils.service';
 import * as gConst from '../gConst';
@@ -53,7 +54,8 @@ export class SerialPortService {
 
     slMsg = {} as sl_msg;
 
-    constructor(private events: EventsService,
+    constructor(private udp: UdpService,
+                private events: EventsService,
                 private utils: UtilsService) {
         this.rwBuf.wrBuf = this.txNodeBuf;
         this.events.subscribe('wr_bind', (bind)=>{
@@ -172,8 +174,8 @@ export class SerialPortService {
             }, 1000);
             return;
         }
-        let portPath = this.comPorts[this.portIdx].path;
-        this.utils.sendMsg(`testing: ${portPath}`, 'blue');
+        this.portPath = this.comPorts[this.portIdx].path;
+        this.utils.sendMsg(`testing: ${this.portPath}`, 'blue');
         let connOpts = {
             bitrate: 115200
         };
@@ -382,16 +384,20 @@ export class SerialPortService {
                 }
                 break;
             }
-            /*
             case gConst.SL_MSG_LOG: {
-                let idx = msgData.indexOf(10);
+
+                let idx = slMsg.nodeBuf.indexOf(10);
                 if(idx > -1) {
-                    msgData[idx] = 32;
+                    slMsg.nodeBuf[idx] = 32;
                 }
-                this.utils.sendMsg(String.fromCharCode.apply(null, msgData));
+                idx = slMsg.nodeBuf.indexOf(0);
+                if(idx > -1) {
+                    slMsg.nodeBuf[idx] = 32;
+                }
+
+                this.utils.sendMsg(String.fromCharCode.apply(null, slMsg.nodeBuf));
                 break;
             }
-            */
             case gConst.SL_MSG_READ_ATTR_SET_AT_IDX: {
                 const rxSet = {} as gIF.attrSet_t;
                 const msgSeqNum = this.rwBuf.read_uint8();
@@ -498,7 +504,20 @@ export class SerialPortService {
             case gConst.SL_MSG_ZCL_CMD: {
                 const msgSeqNum = this.rwBuf.read_uint8();
                 if(msgSeqNum == this.seqNum) {
-                    // ---
+                    const zclCmd: gIF.udpZclReq_t = JSON.parse(this.spCmd.param);
+                    if(zclCmd.ip){
+                        const zclRsp = {} as gIF.udpZclRsp_t;
+                        zclRsp.seqNum = zclCmd.seqNum;
+                        zclRsp.ip = zclCmd.ip;
+                        zclRsp.port = zclCmd.port;
+                        zclRsp.extAddr = this.rwBuf.read_double_LE();
+                        zclRsp.endPoint = this.rwBuf.read_uint8();
+                        zclRsp.clusterID = this.rwBuf.read_uint16_LE();
+                        zclRsp.status = this.rwBuf.read_uint8();
+
+                        this.udp.zclRsp(zclRsp);
+                    }
+
                     if(this.spCmdQueue.length > 0) {
                         this.runCmd();
                     }

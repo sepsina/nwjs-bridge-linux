@@ -113,8 +113,8 @@ export class SSR implements OnInit, AfterViewInit {
      */
     setActuator(state: number){
         const zclCmd = {} as gIF.udpZclReq_t;
-        zclCmd.ip = this.dlgData.attr.ip;
-        zclCmd.port = this.dlgData.attr.port;
+        zclCmd.ip = '';
+        zclCmd.port = 0;
         zclCmd.extAddr = this.dlgData.attr.extAddr;
         zclCmd.endPoint = this.dlgData.attr.endPoint;
         zclCmd.clusterID = gConst.CLUSTER_ID_GEN_ON_OFF;
@@ -124,7 +124,8 @@ export class SSR implements OnInit, AfterViewInit {
         zclCmd.cmd[0] = 0x11; // cluster spec cmd, not manu spec, client to srv dir, disable dflt rsp
         zclCmd.cmd[1] = 0x00; // seq num -> not used
         zclCmd.cmd[2] = state;  // ON/OFF command
-        this.serialLink.udpZclCmd(JSON.stringify(zclCmd));
+        //this.serialLink.udpZclCmd(JSON.stringify(zclCmd));
+        this.events.publish('zcl_cmd', JSON.stringify(zclCmd));
     }
 
 }

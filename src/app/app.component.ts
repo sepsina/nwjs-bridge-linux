@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, OnInit, ViewChild, NgZone, OnDestroy, Renderer2 } from '@angular/core';
 import { EventsService } from './services/events.service';
-import { SerialLinkService } from './services/serial-link.service';
+import { SerialPortService } from './services/serial-port.service';
 import { UdpService } from './services/udp.service';
 import { StorageService } from './services/storage.service';
 import { UtilsService } from './services/utils.service';
@@ -76,7 +76,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     dragRef: CdkDrag;
 
     constructor(private events: EventsService,
-                private serialLink: SerialLinkService,
+                private serialPort: SerialPortService,
                 private udp: UdpService,
                 public storage: StorageService,
                 private matDialog: MatDialog,
@@ -108,7 +108,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     ngOnInit() {
         window.onbeforeunload = async ()=>{
             this.udp.closeSocket();
-            this.serialLink.closeComPort();
+            this.serialPort.closeComPort();
         };
 
         this.events.subscribe('temp_event', (event: gIF.tempEvent_t)=>{
@@ -687,7 +687,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
                     zclCmd.cmd[0] = 0x11; // cluster spec cmd, not manu spec, client to srv dir, disable dflt rsp
                     zclCmd.cmd[1] = 0x00; // seq num -> not used
                     zclCmd.cmd[2] = cmd;  // ON/OFF command
-                    this.serialLink.udpZclCmd(JSON.stringify(zclCmd));
+                    this.events.publish('zcl_cmd', JSON.stringify(zclCmd));
                 }
             }
         }
