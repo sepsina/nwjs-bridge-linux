@@ -1,8 +1,7 @@
 ///<reference types="chrome"/>
-import {Injectable} from '@angular/core';
-import { UdpService } from './udp.service';
-import {EventsService} from './events.service';
-import {UtilsService} from './utils.service';
+import { Injectable} from '@angular/core';
+import { EventsService } from './events.service';
+import { UtilsService } from './utils.service';
 import * as gConst from '../gConst';
 import * as gIF from '../gIF';
 
@@ -54,8 +53,7 @@ export class SerialPortService {
 
     slMsg = {} as sl_msg;
 
-    constructor(private udp: UdpService,
-                private events: EventsService,
+    constructor(private events: EventsService,
                 private utils: UtilsService) {
         this.rwBuf.wrBuf = this.txNodeBuf;
         this.events.subscribe('wr_bind', (bind)=>{
@@ -420,8 +418,7 @@ export class SerialPortService {
                         for(let i = 0; i < rxSet.valsLen; i++) {
                             rxSet.attrVals[i] = this.rwBuf.read_uint8();
                         }
-
-                        this.events.publish('attr_set', JSON.stringify(rxSet));
+                        this.events.publish('attr_set', rxSet);
 
                         param.idx = memIdx + 1;
                         this.spCmd.param = JSON.stringify(param);
@@ -458,8 +455,7 @@ export class SerialPortService {
                         rxBind.clusterID = this.rwBuf.read_uint16_LE();
                         rxBind.dstExtAddr = this.rwBuf.read_double_LE();
                         rxBind.dstEP = this.rwBuf.read_uint8();
-
-                        this.events.publish('cluster_bind', JSON.stringify(rxBind));
+                        this.events.publish('cluster_bind', rxBind);
 
                         param.idx = memIdx + 1;
                         this.spCmd.param = JSON.stringify(param);
@@ -514,10 +510,8 @@ export class SerialPortService {
                         zclRsp.endPoint = this.rwBuf.read_uint8();
                         zclRsp.clusterID = this.rwBuf.read_uint16_LE();
                         zclRsp.status = this.rwBuf.read_uint8();
-
-                        this.udp.zclRsp(zclRsp);
+                        this.events.publish('zcl_rsp', zclRsp);
                     }
-
                     if(this.spCmdQueue.length > 0) {
                         this.runCmd();
                     }
@@ -781,11 +775,11 @@ export class SerialPortService {
      * brief
      *
      */
-    udpZclCmd(zclCmd: string) {
+    udpZclCmd(zclCmd: gIF.udpZclReq_t) {
         let cmd: gIF.spCmd_t = {
             type: gConst.ZCL_CMD,
             retryCnt: 0,
-            param: zclCmd,
+            param: JSON.stringify(zclCmd),
         };
         this.spCmdQueue.push(cmd);
         if(this.spCmdFlag == false) {
