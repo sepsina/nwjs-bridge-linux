@@ -134,6 +134,9 @@ export const SL_WR_BIND = 3;
 export const SL_ZCL_CMD = 4;
 export const SL_CLOSE_CMD = 5;
 
-export const THERMOSTAT_HYSTERESIS = 0.5
+export const THERMOSTAT_HYSTERESIS = 0.5;
+
+export const FREE_LIST_LEN = 12;
+export const USED_LIST_LEN = 6;
 
 

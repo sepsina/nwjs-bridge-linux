@@ -392,7 +392,6 @@ export class SerialPortService {
                 if(idx > -1) {
                     slMsg.nodeBuf[idx] = 32;
                 }
-
                 this.utils.sendMsg(String.fromCharCode.apply(null, slMsg.nodeBuf));
                 break;
             }
@@ -548,19 +547,28 @@ export class SerialPortService {
         if(this.spCmd) {
             switch(this.spCmd.type) {
                 case gConst.RD_ATTR: {
-                    this.reqAttrAtIdx();
+                    setTimeout(() => {
+                        this.reqAttrAtIdx();
+                    }, 10);
                     break;
                 }
                 case gConst.RD_BIND: {
-                    this.reqBindAtIdx();
+                    setTimeout(() => {
+                        this.reqBindAtIdx();
+                    }, 10);
                     break;
                 }
                 case gConst.WR_BIND: {
-                    this.wrBindReq();
+                    setTimeout(() => {
+                        this.wrBindReq();
+                    }, 10);
                     break;
                 }
                 case gConst.ZCL_CMD: {
-                    this.zclReq();
+                    setTimeout(() => {
+                        this.zclReq();
+                    }, 10);
+
                     break;
                 }
                 default: {
