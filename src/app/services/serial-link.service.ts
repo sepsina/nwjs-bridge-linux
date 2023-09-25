@@ -107,8 +107,7 @@ export class SerialLinkService implements OnDestroy {
                         newVal.pos = {x: 0, y: 0};
                         newVal.name = 'no name';
                         newVal.style = gConst.NG_STYLE;
-                        newVal.valCorr = {units: gConst.DEG_C,
-                                          slope: 1,
+                        newVal.valCorr = {units: spec.units,
                                           offset: 0};
                     }
                     newVal.hostShortAddr = attrSet.hostShortAddr;

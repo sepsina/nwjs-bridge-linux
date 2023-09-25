@@ -76,7 +76,6 @@ export interface ngStyle_t {
 }
 export interface valCorr_t{
     units: number;
-    slope: number;
     offset: number;
 }
 

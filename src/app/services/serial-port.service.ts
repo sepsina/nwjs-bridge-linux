@@ -105,7 +105,6 @@ export class SerialPortService {
     async closeComPort() {
         if(this.connID > -1){
             this.utils.sendMsg('close port', 'red');
-            this.events.publish('closePort', 'close');
             const result = await this.closePortAsync(this.connID);
             if(result){
                 this.connID = -1;
@@ -549,25 +548,25 @@ export class SerialPortService {
                 case gConst.RD_ATTR: {
                     setTimeout(() => {
                         this.reqAttrAtIdx();
-                    }, 10);
+                    }, 1);
                     break;
                 }
                 case gConst.RD_BIND: {
                     setTimeout(() => {
                         this.reqBindAtIdx();
-                    }, 10);
+                    }, 1);
                     break;
                 }
                 case gConst.WR_BIND: {
                     setTimeout(() => {
                         this.wrBindReq();
-                    }, 10);
+                    }, 1);
                     break;
                 }
                 case gConst.ZCL_CMD: {
                     setTimeout(() => {
                         this.zclReq();
-                    }, 10);
+                    }, 1);
 
                     break;
                 }
@@ -590,7 +589,7 @@ export class SerialPortService {
      */
     private spCmdTmo() {
 
-        this.utils.sendMsg('--- READ_HOST_TMO ---', 'red');
+        this.utils.sendMsg('--- TMO ---', 'red');
 
         if(this.spCmd.retryCnt > 0) {
             this.spCmd.retryCnt--;
@@ -728,11 +727,11 @@ export class SerialPortService {
      * brief
      *
      */
-    wrBind(bind: string) {
+    wrBind(bind: gIF.hostedBind_t) {
         const cmd: gIF.spCmd_t = {
             type: gConst.WR_BIND,
             retryCnt: gConst.RD_HOST_RETRY_CNT,
-            param: bind,
+            param: JSON.stringify(bind),
         };
         this.spCmdQueue.push(cmd);
         if(this.spCmdFlag == false) {
