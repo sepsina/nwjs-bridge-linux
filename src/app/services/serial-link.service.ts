@@ -314,7 +314,42 @@ export class SerialLinkService implements OnDestroy {
         let idx: number;
 
         switch(attrSet.partNum) {
-            case gConst.HTU21D_005_T: {
+            case gConst.SI7021_027_RH:
+            case gConst.SHT40_018_RH:
+            case gConst.HTU21D_005_RH: {
+                idx = 0;
+                let rh = valsView.getUint16(idx, gConst.LE);
+                idx += 2;
+                rh /= 10.0;
+                let corrRH = rh;
+                attrID = 0;
+                key = this.getKey(attrSet, attrID);
+                nvAttr = this.storage.nvAttrMap.get(key);
+                attrName = '';
+                if(nvAttr) {
+                    attrName = nvAttr.attrName;
+                    corrRH = this.corrVal(rh, nvAttr.valCorr);
+                }
+                setVals = {
+                    name: attrName,
+                    rh_val: corrRH,
+                };
+                spec = {
+                    attrID: attrID,
+                    isVisible: true,
+                    isSensor: true,
+                    hasHistory: true,
+                    formatedVal: `${rh.toFixed(0)} %rh`,
+                    units: gConst.RH_UNIT,
+                    timestamp: now,
+                    attrVal: rh,
+                };
+                attrSpecs.push(spec);
+                break;
+            }
+            case gConst.SI7021_027_T:
+            case gConst.HTU21D_005_T:
+            case gConst.SHT40_018_T: {
                 idx = 0;
                 let temp = valsView.getInt16(idx, gConst.LE);
                 idx += 2;
@@ -364,65 +399,6 @@ export class SerialLinkService implements OnDestroy {
                 this.events.publish('temp_event', tempEvent);
                 break;
             }
-            case gConst.HTU21D_005_RH: {
-                idx = 0;
-                let rh = valsView.getUint16(idx, gConst.LE);
-                idx += 2;
-                rh /= 10.0;
-                let corrRH = rh;
-                attrID = 0;
-                key = this.getKey(attrSet, attrID);
-                nvAttr = this.storage.nvAttrMap.get(key);
-                attrName = '';
-                if(nvAttr) {
-                    attrName = nvAttr.attrName;
-                    corrRH = this.corrVal(rh, nvAttr.valCorr);
-                }
-                setVals = {
-                    name: attrName,
-                    rh_val: corrRH,
-                };
-                spec = {
-                    attrID: attrID,
-                    isVisible: true,
-                    isSensor: true,
-                    hasHistory: true,
-                    formatedVal: `${rh.toFixed(0)} %rh`,
-                    units: gConst.RH_UNIT,
-                    timestamp: now,
-                    attrVal: rh,
-                };
-                attrSpecs.push(spec);
-                break;
-            }
-            case gConst.HTU21D_005_BAT: {
-                idx = 0;
-                let batVolt = valsView.getUint8(idx++);
-                batVolt /= 10.0;
-                attrID = 0;
-                key = this.getKey(attrSet, attrID);
-                nvAttr = this.storage.nvAttrMap.get(key);
-                attrName = '';
-                if(nvAttr) {
-                    attrName = nvAttr.attrName;
-                }
-                setVals = {
-                    name: attrName,
-                    bat_volt: batVolt,
-                };
-                spec = {
-                    attrID: attrID,
-                    isVisible: true,
-                    isSensor: false,
-                    hasHistory: false,
-                    formatedVal: `${batVolt.toFixed(1)} V`,
-                    units: gConst.VOLT_UNIT,
-                    timestamp: now,
-                    attrVal: batVolt,
-                };
-                attrSpecs.push(spec);
-                break;
-            }
             case gConst.SH_006_SH: {
                 idx = 0;
                 let sh = valsView.getUint16(idx, gConst.LE);
@@ -451,35 +427,6 @@ export class SerialLinkService implements OnDestroy {
                 attrSpecs.push(spec);
                 break;
             }
-            case gConst.SH_006_BAT: {
-                idx = 0;
-                let batVolt = valsView.getUint8(idx++);
-                batVolt /= 10.0;
-                attrID = 0;
-                key = this.getKey(attrSet, attrID);
-                nvAttr = this.storage.nvAttrMap.get(key);
-                attrName = '';
-                if(nvAttr) {
-                    attrName = nvAttr.attrName;
-                }
-                setVals = {
-                    name: attrName,
-                    bat_volt: batVolt,
-                };
-                spec = {
-                    attrID: attrID,
-                    isVisible: true,
-                    isSensor: false,
-                    hasHistory: false,
-                    formatedVal: `${batVolt.toFixed(1)} V`,
-                    units: gConst.VOLT_UNIT,
-                    timestamp: now,
-                    attrVal: batVolt,
-                };
-                attrSpecs.push(spec);
-                break;
-            }
-
             case gConst.SSR_009_RELAY: {
                 idx = 0;
                 let state = valsView.getUint8(idx++);
@@ -541,35 +488,14 @@ export class SerialLinkService implements OnDestroy {
                 attrSpecs.push(spec);
                 break;
             }
-            case gConst.DBL_SW_008_BAT: {
-                idx = 0;
-                let batVolt = valsView.getUint8(idx++);
-                batVolt /= 10.0;
-                attrID = 0;
-                key = this.getKey(attrSet, attrID);
-                nvAttr = this.storage.nvAttrMap.get(key);
-                attrName = '';
-                if(nvAttr) {
-                    attrName = nvAttr.attrName;
-                }
-                setVals = {
-                    name: attrName,
-                    bat_volt: batVolt,
-                };
-                spec = {
-                    attrID: attrID,
-                    isVisible: true,
-                    isSensor: false,
-                    hasHistory: false,
-                    formatedVal: `${batVolt.toFixed(1)} V`,
-                    units: gConst.VOLT_UNIT,
-                    timestamp: now,
-                    attrVal: batVolt,
-                };
-                attrSpecs.push(spec);
-                break;
-            }
-            case gConst.TGL_SW_011_BAT: {
+            case gConst.HTU21D_005_BAT:
+            case gConst.SHT40_018_BAT:
+            case gConst.SI7021_027_BAT:
+            case gConst.SH_006_BAT:
+            case gConst.DBL_SW_008_BAT:
+            case gConst.PB_SW_023_BAT:
+            case gConst.TGL_SW_011_BAT:
+            case gConst.RKR_SW_012_BAT: {
                 idx = 0;
                 let batVolt = valsView.getUint8(idx++);
                 batVolt /= 10.0;

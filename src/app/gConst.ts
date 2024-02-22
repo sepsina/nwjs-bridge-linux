@@ -62,6 +62,16 @@ export const HTU21D_005_T = 501;
 export const HTU21D_005_RH = 502;
 export const HTU21D_005_BAT = 503;
 
+export const SHT40_018_BASE = 1800;
+export const SHT40_018_T = 1801;
+export const SHT40_018_RH = 1802;
+export const SHT40_018_BAT = 1803;
+
+export const SI7021_027_BASE = 2700;
+export const SI7021_027_T = 2701;
+export const SI7021_027_RH = 2702;
+export const SI7021_027_BAT = 2703;
+
 export const SH_006_BASE = 600;
 export const SH_006_SH = 601;
 export const SH_006_BAT = 602;
@@ -74,6 +84,14 @@ export const DBL_SW_008_BAT = 803;
 export const TGL_SW_011_BASE = 1100;
 export const TGL_SW_011_SW = 1101;
 export const TGL_SW_011_BAT = 1102;
+
+export const RKR_SW_012_BASE = 1200;
+export const RKR_SW_012_SW = 1201;
+export const RKR_SW_012_BAT = 1202;
+
+export const PB_SW_023_BASE = 2300;
+export const PB_SW_023_SW = 2301;
+export const PB_SW_023_BAT = 2302;
 
 export const SSR_009_BASE = 900;
 export const SSR_009_RELAY = 901;

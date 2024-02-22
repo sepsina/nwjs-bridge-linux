@@ -30,6 +30,54 @@
     "url": "www.serf.htu21d_005"
   },
   {
+    "partNum": 1800,
+    "devName": "SHT40-018",
+    "part": "base",
+    "url": "www.serf.sht40_018"
+  },
+  {
+    "partNum": 1801,
+    "devName": "SHT40-018",
+    "part": "temperature",
+    "url": "www.serf.sht40_018"
+  },
+  {
+    "partNum": 1802,
+    "devName": "SHT40-018",
+    "part": "humidity",
+    "url": "www.serf.sht40_018"
+  },
+  {
+    "partNum": 1803,
+    "devName": "SHT40-018",
+    "part": "battery",
+    "url": "www.serf.sht40_018"
+  },
+  {
+    "partNum": 2700,
+    "devName": "SI7021-027",
+    "part": "base",
+    "url": "www.serf.si7021_027"
+  },
+  {
+    "partNum": 2701,
+    "devName": "SI7021-027",
+    "part": "temperature",
+    "url": "www.serf.si7021_027"
+  },
+  {
+    "partNum": 2702,
+    "devName": "SI7021-027",
+    "part": "humidity",
+    "url": "www.serf.si7021_027"
+  },
+  {
+    "partNum": 2703,
+    "devName": "SI7021-027",
+    "part": "battery",
+    "url": "www.serf.si7021_027"
+  },
+  {
     "partNum": 700,
     "devName": "BME280-007",
     "part": "base",
@@ -100,6 +148,42 @@
     "devName": "TGL-SW-011",
     "part": "battery",
     "url": "www.serf.tgl_sw_011"
+  },
+  {
+    "partNum": 1200,
+    "devName": "RKR-SW-012",
+    "part": "base",
+    "url": "www.serf.rkr_sw_012"
+  },
+  {
+    "partNum": 1201,
+    "devName": "RKR-SW-012",
+    "part": "rocker switch",
+    "url": "www.serf.rkr_sw_012"
+  },
+  {
+    "partNum": 1202,
+    "devName": "RKR-SW-012",
+    "part": "battery",
+    "url": "www.serf.rkr_sw_012"
+  },
+  {
+    "partNum": 2300,
+    "devName": "PB-SW-023",
+    "part": "base",
+    "url": "www.serf.pb_sw_023"
+  },
+  {
+    "partNum": 2301,
+    "devName": "PB-SW-023",
+    "part": "push button",
+    "url": "www.serf.pb_sw_023"
+  },
+  {
+    "partNum": 2302,
+    "devName": "PB-SW-023",
+    "part": "battery",
+    "url": "www.serf.pb_sw_023"
   },
   {
     "partNum": 200,

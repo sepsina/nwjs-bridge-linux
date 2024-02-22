@@ -7,7 +7,7 @@ import * as gConst from '../gConst';
 import * as gIF from '../gIF';
 
 const UDP_PORT = 22802;
-const ANNCE_TMO = 3000;
+const ANNCE_TMO = 500;
 
 @Injectable({
     providedIn: 'root',

@@ -76,6 +76,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
     dragRef: CdkDrag;
 
+    trash = 1;
+
     constructor(private events: EventsService,
                 private serialLink: SerialLinkService,
                 private serialPort: SerialPortService,
@@ -108,6 +110,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      */
     ngOnInit() {
+
         window.onbeforeunload = async ()=>{
             this.udp.closeSocket();
             this.serialPort.closeComPort();
@@ -116,6 +119,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.events.subscribe('temp_event', (event: gIF.tempEvent_t)=>{
             this.tempEvent(event);
         });
+
+        try {
+            window.resizeTo(window.screen.availWidth, window.screen.availHeight);
+            window.resizeBy(-100, -100);
+            window.moveTo(50, 50);
+        } catch(e) {
+            console.log(e);
+        }
 
         setTimeout(() => {
             this.serialLink.initApp();
@@ -139,7 +150,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
      *
      */
     init() {
-
+        /*
+        setTimeout(() => {
+            (<any>window).resizeTo(screen.availWidth, screen.availHeight);
+        }, 1000);
+        */
         const partsURL = '/assets/parts.json';
 
         this.httpClient.get(partsURL).subscribe({
